@@ -3,7 +3,7 @@ import mimetypes
 import os
 from chainlit.data.base  import BaseStorageClient
 from typing import  Dict, Any, Union
-from aiohttp import ClientError, ClientSession as Session, ServerTimeoutError
+from aiohttp import  ClientSession as ServerTimeoutError
 import aiofiles
 from chainlit.logger import logger
 

@@ -1,37 +1,13 @@
 import chainlit as cl
 import copy
-import re
 import os
 from llama_index.core.postprocessor import LLMRerank
 from llama_index.core import QueryBundle
-from llama_index.core.tools import FunctionTool
-from llama_index.core.tools import QueryEngineTool
 from typing import List, Dict, Any
-from functools import wraps
-from llama_index.llms.ollama import Ollama as llamaindex_ollama
-from llama_index.core.llms import ChatMessage
 import ollama
-
-from urllib.parse import quote
-from llama_index.core.base.llms.types import (
-    ChatMessage,
-    MessageRole,
-)
-from llama_index.core import Settings, VectorStoreIndex
-from llama_index.vector_stores.postgres import PGVectorStore
-from llama_index.core.agent import FunctionCallingAgentWorker
-from langchain_ollama import ChatOllama
-
-from llama_agents import (
-    AgentService,
-    ControlPlaneServer,
-    SimpleMessageQueue,
-    AgentOrchestrator,
-)
-from llama_agents import LocalLauncher
-from llama_index.core.agent import FunctionCallingAgentWorker
-import time
-import psycopg2
+from typing import Literal
+from typing_extensions import TypedDict
+from pydantic import BaseModel
 from intelligence import sources_update
 from prompts import *
 
@@ -45,32 +21,11 @@ table_name= os.getenv("table_name", None)
 llama_model_id = os.getenv("llama_model_id", None)
 supervisor_llm = os.getenv("supervisor_model_id", None)
 worker_llm = os.getenv("work_model_id", None)
-from typing import Literal
-from typing_extensions import TypedDict
-from langchain_core.messages import HumanMessage
-from langgraph.graph import StateGraph, START, END
-
-from langgraph.graph import MessagesState, END
-from langgraph.types import Command
-
-from langgraph.prebuilt import create_react_agent
-from langchain_anthropic import ChatAnthropic
-
-
-from ollama import chat
-from pydantic import BaseModel
-import json 
 
 DOCUMENT_ROOT_PATH = "./DOCUMENTS/"
 os.makedirs(DOCUMENT_ROOT_PATH, exist_ok=True)
 print(f"Directory '{DOCUMENT_ROOT_PATH}' created or already exists.")
 
-
-members = [
-    "intro_creator",
-    "body_creator",
-    "reference_creator"
-    ]
 
 class MultiAgentSupervisor():
     def __init__(
@@ -181,7 +136,7 @@ class AIAgent():
         self.extra_params = kwargs
         self.agent = ollama
         self.intent_agent = ollama
-        self.new_members = copy.deepcopy(members)
+        self.new_members = copy.deepcopy(custom_multiagent_members)
         self.supervisor = MultiAgentSupervisor(model = ollama )
 
         self.workers = {name : MultiAgentWorkers(worker_name = name, model = ollama, prompt = workers_instructions[name], language = cl.user_session.get("language")) for name in self.new_members}

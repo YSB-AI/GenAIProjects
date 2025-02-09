@@ -1,36 +1,20 @@
 import os
-import torch
-
 import chainlit as cl
 from chainlit.input_widget import Select, Slider
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
-#from sql_alchemy_custom import SQLAlchemyDataLayer
 from llama_index.llms.ollama import Ollama as llamaindex_ollama
-from llama_index.core.llms import ChatMessage
 import ollama
-
 from chainlit.types import ThreadDict
 import time
-
 from intelligence import *
 from typing import Dict, Optional
-
 from dotenv import load_dotenv
-import os
-from llama_index.llms.huggingface import HuggingFaceLLM
 from llama_index.llms.huggingface_api import HuggingFaceInferenceAPI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings, VectorStoreIndex
 
-from llama_index.core.base.llms.types import (
-    ChatMessage,
-    MessageRole,
-)
  #https://docs.llamaindex.ai/en/stable/examples/vector_stores/postgres/
 from llama_index.vector_stores.postgres import PGVectorStore
-from llama_index.core import StorageContext
-
-
 from llama_index.core.response_synthesizers import CompactAndRefine
 from llama_index.core.retrievers import QueryFusionRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
@@ -291,31 +275,28 @@ async def on_action(action):
 async def on_chat_resume(thread: ThreadDict):
 
     llm = HuggingFaceInferenceAPI(
-        model_name=model_id, 
-        tokenizer_name=model_id, 
-        token=hf_token,
-        context_window = 100000,
-        num_outputs = Field(
-                default=4000,
-                description="The number of tokens to generate.",
-            ),
-        is_chat_model = True,
-        generate_kwargs={
-            "do_sample": True,
-            "temperature": 0,
-            "top_p": 0.9,
-        },
-    )
-
+            model_name=model_id, 
+            tokenizer_name=model_id, 
+            token=hf_token,
+            context_window = 100000,
+            num_outputs = Field(
+                    default=4000,
+                    description="The number of tokens to generate.",
+                ),
+            is_chat_model = True,
+            generate_kwargs={
+                "do_sample": True,
+                "temperature": 0,
+                "top_p": 0.9,
+            },
+        )
+    
     cl.user_session.set("model", ollama)
 
-
     # Embedding model
-    embedding_model = HuggingFaceEmbedding(model_name=embed_model_name)
     cl.user_session.set("embed_model", embedding_model)
     
     # Configs
-    
     # # bge embedding model
     Settings.embed_model = embedding_model
 
@@ -339,91 +320,24 @@ async def on_chat_resume(thread: ThreadDict):
         use_async = True
         )
 
-    semantic_retriever = index.as_retriever(similarity_top_k=30)
+    semantic_retriever = index.as_retriever(similarity_top_k=40)
+    retriever = semantic_retriever
     
-    sparse_retriever= index.as_retriever(
-        vector_store_query_mode="sparse", sparse_top_k=30
-        )
-
-    fusion_retriever = QueryFusionRetriever(
-            [semantic_retriever, sparse_retriever],
-            similarity_top_k=30,
-            num_queries=10,  # set this to 1 to disable query generation
-            mode="relative_score",
-            use_async=True,
-        )
-    response_synthesizer = CompactAndRefine()
-    query_engine = RetrieverQueryEngine(
-        retriever=fusion_retriever,
-        response_synthesizer=response_synthesizer,
-    )
-    retriever = query_engine
-    # Use the index as a retriever
+    cl.user_session.set("retriever", retriever)
+    cl.user_session.set("answer_sources", [])
+    cl.user_session.set("conversation_history", [])
+    cl.user_session.set("resume_history", [])
+    cl.user_session.set("user_input", "")
+    cl.user_session.set("temperature_param", thread["metadata"]["temperature_param"])
+    cl.user_session.set("language", thread["metadata"]["language"])
+    cl.user_session.set("most_recent_history",thread["metadata"]["most_recent_history"])
+    cl.user_session.set("message_history", thread["metadata"]["message_history"])
+    cl.user_session.set("task_list", thread["metadata"]["task_list"])
 
     if AGENT_RUN :
         
         agent = AIAgent(
             retriever=retriever,
-            agent_enabled = AGENT_RUN,
-            tools_method = "ollama",
-        )
-        cl.user_session.set("agent", agent)
-        
-
-    # Restore conversation info
-    cl.user_session.set("answer_sources", [])
-    cl.user_session.set("conversation_history", [])
-    cl.user_session.set("resume_history", [])
-    cl.user_session.set("user_input", "")
-    cl.user_session.set("language", thread["metadata"]["language"])
-    cl.user_session.set("temperature_param", thread["metadata"]["temperature_param"])
-    cl.user_session.set("most_recent_history", thread["metadata"]["most_recent_history"])
-    cl.user_session.set("message_history", thread["metadata"]["message_history"])
-
-
-    llm = llamaindex_ollama(
-            model=f"{llama_model_id}:latest", 
-            request_timeout=120.0, 
-            temperature = thread["metadata"]["temperature_param"], 
-            context_window = 100000)
-
-    cl.user_session.set("model", llm)
-    Settings.llm = llm
-    Settings.embed_model = embedding_model
-    
-    # pgvector_store = PGVectorStore.from_params(
-    #         database = database,
-    #         host = host,
-    #         password = password,
-    #         port = port,
-    #         user = user,
-    #         table_name = table_name, 
-    #         embed_dim = 1024,  # selected model embedding dimension
-    #         text_search_config = "english",
-    #         hnsw_kwargs={
-    #             "hnsw_m": 16,
-    #             "hnsw_ef_construction": 64,
-    #             "hnsw_ef_search": 40,
-    #             "hnsw_dist_method": "vector_cosine_ops",
-    #         },
-    # )
-
-    # index = VectorStoreIndex.from_vector_store(
-    #     vector_store=pgvector_store, 
-    #     vector_store_kwargs={
-    #         "mmr_threshold": 0.7 
-    #         }
-    #     )
-
-    # # chat_engine = index.as_chat_engine()
-    # # cl.user_session.set("chat_engine", chat_engine)
-    
-    # # Use the index as a retriever
-    # retriever = index.as_retriever(similarity_top_k=50)
-    
-    if AGENT_RUN :
-        agent = AIAgent(
-            llm = llm,
             agent_enabled = AGENT_RUN,
             tools_method = "ollama",
         )
@@ -473,7 +387,7 @@ async def main(message: cl.Message):
     print(f"Last N interactions : {history}")
     
     update_conversation_history(message)
-    sources_update(message.elements) #for now empty - just to assure the array has the same lenght as chat history
+    sources_update(message.elements) 
 
     print("New Message: ", message.content)
 
@@ -522,21 +436,3 @@ async def main(message: cl.Message):
 @cl.on_chat_end
 def end():
     print("Finalizing the conversation...")
-
-    # cl.user_session.set("model", None)
-    # cl.user_session.set("embed_model", None)
-
-    # Settings.embed_model = None
-    # Settings.llm = None
-
-    # cl.user_session.set("agent", None)
-
-    # cl.user_session.set("retriever", None)
-
-    # cl.user_session.set("answer_sources", [])
-    # cl.user_session.set("conversation_history", [])
-    # cl.user_session.set("resume_history", [])
-    # cl.user_session.set("user_input", "")
-    # cl.user_session.set("temperature_param", 0)
-    # cl.user_session.set("language", "PT-PT")
-    # cl.user_session.set("most_recent_history",[])

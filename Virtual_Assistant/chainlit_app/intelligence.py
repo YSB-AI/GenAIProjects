@@ -1,22 +1,8 @@
 import chainlit as cl
-
-import re
 import os
 from llama_index.core.postprocessor import LLMRerank
 from llama_index.core import QueryBundle
-from llama_index.core.tools import FunctionTool
-from llama_index.core.agent import ReActAgent
-from llama_index.core.tools import QueryEngineTool
-from typing import List, Dict, Any
-from functools import wraps
-
-from urllib.parse import quote
-from llama_index.core.base.llms.types import (
-    ChatMessage,
-    MessageRole,
-)
-
-import psycopg2
+from llama_index.core.base.llms.types import ChatMessage
 
 llama_model_id = os.getenv("llama_model_id", None)
 #=== Get chunks from bd based on embedding similarity
@@ -84,7 +70,6 @@ def get_intent(user_input: str) -> str:
 
     Do not explain your reasoning. Just output "SEARCH" or "NORMAL" based on the intent of the input.
     """
-    #if the user's query is conversational or not related to searching for specific information.
     messages = [
         ChatMessage(
             role="system", content=final_query

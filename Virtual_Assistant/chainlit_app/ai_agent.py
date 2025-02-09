@@ -1,51 +1,15 @@
 import chainlit as cl
 import copy
-import re
 import json
 import os
 from llama_index.core.postprocessor import LLMRerank
 from llama_index.core import QueryBundle
-from llama_index.core.tools import FunctionTool
-from llama_index.core.tools import QueryEngineTool
 from typing import List, Dict, Any
-from functools import wraps
-from llama_index.llms.ollama import Ollama as llamaindex_ollama
-from llama_index.core.llms import ChatMessage
 import ollama
-
-from urllib.parse import quote
-from llama_index.core.base.llms.types import (
-    ChatMessage,
-    MessageRole,
-)
-from llama_index.core import Settings, VectorStoreIndex
-from llama_index.vector_stores.postgres import PGVectorStore
-from llama_index.core.agent import FunctionCallingAgentWorker
 from langchain_ollama import ChatOllama
-
-from llama_agents import (
-    AgentService,
-    ControlPlaneServer,
-    SimpleMessageQueue,
-    AgentOrchestrator,
-)
-from llama_agents import LocalLauncher
-from llama_index.core.agent import FunctionCallingAgentWorker
-import time
-import psycopg2
 from intelligence import sources_update
 from prompts import *
 
-
-host = os.getenv("host", None)
-user = os.getenv("user", None)
-password = os.getenv("password", None)
-port = os.getenv("port", None)
-database= os.getenv("database", None)
-table_name= os.getenv("table_name", None)
-llama_model_id = os.getenv("llama_model_id", None)
-supervisor_llm = os.getenv("supervisor_model_id", None)
-worker_llm = os.getenv("work_model_id", None)
 from typing import Literal
 from typing_extensions import TypedDict
 from langchain_core.messages import HumanMessage
@@ -57,19 +21,16 @@ from langgraph.types import Command
 from langgraph.prebuilt import create_react_agent
 from langchain_anthropic import ChatAnthropic
 
-members = [
-    "intro_creator",
-    "body_creator",
-    ]
 
-system_prompt = (
-    f"You are a supervisor tasked with managing a conversation between the following workers: {members}. "
-    "Each worker is specifialized in writing a different parts of documents and it is not expected to write more then its own sections :"
-    "The workers should called in the following order : intro_creator, body_creator." 
-    "Given the following user request, respond with the worker to act next. "
-    "Each worker will perform atask and respond with their results and status. "
-    "When finished, respond with FINISH."
-)
+host = os.getenv("host", None)
+user = os.getenv("user", None)
+password = os.getenv("password", None)
+port = os.getenv("port", None)
+database= os.getenv("database", None)
+table_name= os.getenv("table_name", None)
+llama_model_id = os.getenv("llama_model_id", None)
+supervisor_llm = os.getenv("supervisor_model_id", None)
+worker_llm = os.getenv("work_model_id", None)
 
 
 class State(MessagesState):

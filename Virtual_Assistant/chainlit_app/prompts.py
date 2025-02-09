@@ -160,7 +160,7 @@ workers_instructions = {
         - The outputs of other agents working on different sections of the same document (if available).
 
         2. Your task is to:
-        - Write the Body section for the given topic.
+        - Write the Body section for the given topic, providing the most detailed information as possible. 
         - Ensure the content is cohesive and contextually aligned with the outputs of other agents. Avoid repetition of information already covered in other sections.
         - If revising your previous outputs, improve them to better align with the overall document and make sure you write ONLY your specified sections.
 
@@ -198,3 +198,24 @@ workers_instructions = {
         - Output only the content of the refered sections without any other explanation or commentary
         """,
 }      
+
+members = [
+    "intro_creator",
+    "body_creator",
+    ]
+
+system_prompt = (
+    f"You are a supervisor tasked with managing a conversation between the following workers: {members}. "
+    "Each worker is specifialized in writing a different parts of documents and it is not expected to write more then its own sections :"
+    "The workers should called in the following order : intro_creator, body_creator." 
+    "Given the following user request, respond with the worker to act next. "
+    "Each worker will perform atask and respond with their results and status. "
+    "When finished, respond with FINISH."
+)
+
+
+custom_multiagent_members = [
+    "intro_creator",
+    "body_creator",
+    "reference_creator"
+    ]
