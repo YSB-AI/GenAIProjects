@@ -543,8 +543,8 @@ class AIAgent():
                         queries_done.append(refined_query)
                         print("Refined query  : ", refined_query)
                         search_res = await self.retrieve_data_tool(refined_query)
-                        output = str(search_res)+ "\n\nUsing this search result answer the question : " + user_input
-                        tools_list = [language_tool,  create_doc_agents_tool]
+                        output = "Here you have the search result : "+str(search_res)+ "\n\nUse only this search result answer the question : " + user_input+". If no results found, inform the user."
+                        tools_list = [language_tool]
                         info_provided = True
 
                     elif tool.function.name == "translate_output_tool":
@@ -578,23 +578,23 @@ class AIAgent():
                     print("Response tools : ",response.message.tool_calls)
                     print("Retry : ",retry)
                     
-                    if not response.message.tool_calls and retry < 2 and search_res is not None :
-                        eval_result = self.evaluate_responses_relevancy(user_input, response.message.content, search_res)
-                        if not eval_result:  
-                            refine_again = True
-                            retry +=1
-                            output = self.apply_retry_process(retry, response, user_input)
+                    # if not response.message.tool_calls and retry < 2 and search_res is not None :
+                    #     eval_result = self.evaluate_responses_relevancy(user_input, response.message.content, search_res)
+                    #     if not eval_result:  
+                    #         refine_again = True
+                    #         retry +=1
+                    #         output = self.apply_retry_process(retry, response, user_input)
                             
-                            messages.append({"role":"user", "content" : output})
-                            response = self.agent.chat(
-                                self.llama_model_id, 
-                                messages=messages,
-                                tools = [retrieve_acquisition_tool]
-                                )
+                    #         messages.append({"role":"user", "content" : output})
+                    #         response = self.agent.chat(
+                    #             self.llama_model_id, 
+                    #             messages=messages,
+                    #             tools = [retrieve_acquisition_tool]
+                    #             )
                             
-                            print("refine_again : ",refine_again)
-                            print("retry response ->",response.message.tool_calls)
-                    elif  response.message.tool_calls is None and intent  in ["SEARCH", "DOC_WRITER"] and retry <2 and info_provided == False:
+                    #         print("refine_again : ",refine_again)
+                    #         print("retry response ->",response.message.tool_calls)
+                    if  response.message.tool_calls is None and intent  in ["SEARCH", "DOC_WRITER"] and retry <2 and info_provided == False:
                         print(f"Even though the intent is {intent} the intent is  {response.message.tool_calls }. Retrying ...")
                         output = f"Your did not follow your instructions. Your intent is  '{intent}' so you should call the tool to process it."
                         retry +=1
