@@ -1,0 +1,16 @@
+*.model
+*.pyc
+*.pth
+Virtual_Assistant/chainlit_app/__pycache__/
+Virtual_Assistant/chainlit_app/__pycache__/app.cpython-311.pyc
+Virtual_Assistant/chainlit_app/__pycache__/intelligence.cpython-311.pyc
+Virtual_Assistant/chainlit_app/__pycache__/app.cpython-311.pyc
+*.pdf
+*.txt
+STORAGE
+Virtual_Assistant/chainlit_app/.env
+Virtual_Assistant/chainlit_app/public/.env
+Virtual_Assistant/chainlit_app/archive/*
+Virtual_Assistant/notebooks/.env
+Virtual_Assistant/notebooks/experiments.ipynb
+Virtual_Assistant/notebooks/data_processing_and_indexing.ipynb
