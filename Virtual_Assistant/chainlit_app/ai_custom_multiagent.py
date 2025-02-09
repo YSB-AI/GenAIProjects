@@ -10,6 +10,7 @@ from typing_extensions import TypedDict
 from pydantic import BaseModel
 from intelligence import sources_update
 from prompts import *
+from ollama import AsyncClient
 
 
 host = os.getenv("host", None)
@@ -37,7 +38,7 @@ class MultiAgentSupervisor():
         self.agent = model
         self.messages_list = []
    
-    def invoke(self, state, options , system_prompt ):
+    async def invoke(self, state, options , system_prompt ):
         class NextWorker(BaseModel):
             next: Literal[*options]
         
@@ -50,7 +51,7 @@ class MultiAgentSupervisor():
             }
         )
         #https://github.com/ollama/ollama/blob/main/docs/api.md?plain=1
-        response = self.agent.chat(
+        response = await self.agent.chat(
             messages=self.messages_list,
             model=llama_model_id,
             format=NextWorker.model_json_schema(),
@@ -83,7 +84,7 @@ class MultiAgentWorkers():
         #print(f"Worker {worker_name} : \nLanguage : {language} \nPrompt : {prompt}")
     
     
-    def invoke(self, topic : str, state : {}, revise = False ) -> dict:
+    async def invoke(self, topic : str, state : {}, revise = False ) -> dict:
         
         if self.worker_name in state:
             _ = state.pop(self.worker_name)
@@ -101,7 +102,7 @@ class MultiAgentWorkers():
                     'content': content,
                 })
 
-        response = self.agent.chat(
+        response = await self.agent.chat(
             messages=self.message_list,
             model=llama_model_id,
             options = {
@@ -134,19 +135,19 @@ class AIAgent():
         self.tools_method = tools_method
         self.agent_enabled = agent_enabled
         self.extra_params = kwargs
-        self.agent = ollama
-        self.intent_agent = ollama
+        self.agent = AsyncClient()
+        self.intent_agent = AsyncClient()
         self.new_members = copy.deepcopy(custom_multiagent_members)
-        self.supervisor = MultiAgentSupervisor(model = ollama )
+        self.supervisor = MultiAgentSupervisor(model = AsyncClient() )
 
-        self.workers = {name : MultiAgentWorkers(worker_name = name, model = ollama, prompt = workers_instructions[name], language = cl.user_session.get("language")) for name in self.new_members}
+        self.workers = {name : MultiAgentWorkers(worker_name = name, model = AsyncClient(), prompt = workers_instructions[name], language = cl.user_session.get("language")) for name in self.new_members}
         self.retriever = retriever
         self.worker_finished = []
         self.running_worker = 0
   
     #https://stackoverflow.com/questions/78404535/langchain-python-with-structured-output-ollama-functions
 
-    def supervisor_node(self, topic :str) -> dict:
+    async def supervisor_node(self, topic :str) -> dict:
 
         output_per_agent = {}
 
@@ -191,12 +192,12 @@ class AIAgent():
 
             system_prompt_str =  '\n'.join(system_prompt)
             print("options : ", options)
-            next_agent = self.supervisor.invoke(output_per_agent, options, system_prompt_str)
+            next_agent = await self.supervisor.invoke(output_per_agent, options, system_prompt_str)
 
             if next_agent in workers :
                 revise = next_agent in output_per_agent.keys()
                 worker = self.workers[next_agent]
-                output_per_agent[next_agent] = worker.invoke(topic, output_per_agent, revise)
+                output_per_agent[next_agent] = await worker.invoke(topic, output_per_agent, revise)
                 #workers.remove(next_agent)
 
             elif next_agent == "FINISH":
@@ -253,7 +254,7 @@ class AIAgent():
         print("Finished retriving chunks...")
         return sources
 
-    def get_intent(self, user_input: str) -> str:
+    async def get_intent(self, user_input: str) -> str:
         """Getting the intent of the user's input to understand if the user intention is to search 
         for specific information from the knowledge base or just having a conversational/normal interaction.
         This should be the first step of the agent."""
@@ -265,7 +266,7 @@ class AIAgent():
             'content': copy.deepcopy(INTENT_PROMPT).replace("$USER_INPUT$", user_input, ).replace("$HISTORY$", '\n'.join(cl.user_session.get("most_recent_history"))),
             }
         )]
-        response = self.intent_agent.chat(
+        response =await  self.intent_agent.chat(
             messages=messages_list,
             model=llama_model_id,
             format=UsertIntent.model_json_schema(),
@@ -301,8 +302,8 @@ class AIAgent():
         }
 
     @cl.step(type="tool", name = "Getting the input's intent ...")
-    def get_intent_tool(self, user_input):
-        return self.get_intent(user_input)
+    async def get_intent_tool(self, user_input):
+        return await self.get_intent(user_input)
 
     async def retrieve_data(self, user_input: str) -> str:
         """In case the user's intent is 'SEARCH' the user's input is used for querying the knowledge base, in order to find chunks
@@ -352,14 +353,14 @@ class AIAgent():
         return await self.retrieve_data(user_input)
 
     @cl.step(type="tool", name = "Refining query ...")
-    def get_query_improvement(self, user_input : str, extra_instructions : str = " ") -> str:
+    async def get_query_improvement(self, user_input : str, extra_instructions : str = " ") -> str:
         query_refinement_prompt = copy.deepcopy(QUERY_OPTIMIZATION).replace("$USER_INPUT$", user_input).replace("$HISTORY$", '\n'.join(cl.user_session.get("most_recent_history"))).replace("$EXTRA_INSTRUCTIONS$", extra_instructions)
         
         resp = ollama.generate(model=self.llama_model_id, prompt=query_refinement_prompt)
 
         return resp['response']
 
-    def translate_output(self, answer: str) -> str:
+    async def translate_output(self, answer: str) -> str:
         """Translate the output to the specified language so that the user can understand it.
         The is the last step of the agent."""
 
@@ -435,8 +436,8 @@ class AIAgent():
         }
     
     @cl.step(type="tool", name = "Translating the output ...")
-    def translate_output_tool(self, answer):
-        return self.translate_output(answer)
+    async def translate_output_tool(self, answer):
+        return await self.translate_output(answer)
 
     async def retrieve_and_generate(self, history, user_input ):
 
@@ -460,7 +461,7 @@ class AIAgent():
 
             intent_classifier_tool, retrieve_acquisition_tool, language_tool, evaluate_responses_tool, create_doc_agents_tool  = self.get_tools()
 
-            response = self.agent.chat(
+            response = await self.agent.chat(
                     model=self.llama_model_id,
                     messages= messages,
                     tools = [
@@ -490,7 +491,7 @@ class AIAgent():
 
                     if tool.function.name == "get_intent_tool":
                         print( "Getting intent...")
-                        intent = self.get_intent_tool(user_input)
+                        intent = await self.get_intent_tool(user_input)
 
                         if intent =="SEARCH" or intent.find('SEARCH') != -1:
                             output = f"The intent is '{intent}'"
@@ -513,7 +514,7 @@ class AIAgent():
                             topic_to_process = user_input
 
                         print("Creating document with topic : ", topic_to_process)
-                        answer, workers_processed = self.supervisor_node(topic_to_process)
+                        answer, workers_processed = await self.supervisor_node(topic_to_process)
                         print("workers_processed ->",workers_processed)
                         doc_text = ""
                         for m in workers_processed:
@@ -535,21 +536,21 @@ class AIAgent():
                         if refine_again and refined_query is not None:
                             print("Refining the question again...")
                             extra_instructions = f"""Here you have the last few refinements done to the user's input, that didn't provided a good search result enough to answer the question : {queries_done}.Take this in consideration when refining the query this time."""
-                            refined_query = self.get_query_improvement(user_input, extra_instructions)
+                            refined_query = await self.get_query_improvement(user_input, extra_instructions)
                         else:
                             print("New question to be refined...")
-                            refined_query = self.get_query_improvement(user_input)
+                            refined_query = await self.get_query_improvement(user_input)
 
                         queries_done.append(refined_query)
                         print("Refined query  : ", refined_query)
                         search_res = await self.retrieve_data_tool(refined_query)
-                        output = "Here you have the search result : "+str(search_res)+ "\n\nUse only this search result answer the question : " + user_input+". If no results found, inform the user."
+                        output = "Here you have the search result : "+str(search_res)+ "\n\nUse only this search result answer the question : " + user_input+". If not enough information to answer the question are found, inform the user."
                         tools_list = [language_tool]
                         info_provided = True
 
                     elif tool.function.name == "translate_output_tool":
                         print("Translating output...")
-                        output = self.translate_output_tool(tool.function.arguments)
+                        output = await self.translate_output_tool(tool.function.arguments)
                         tools_list = None
                     
                     print("Calling the agent again")
@@ -560,14 +561,14 @@ class AIAgent():
                     print(f"Message created with output {output}. \nCalling the agent with tool : {tools_list}")
                     if tools_list is None:
                         print("Calling without tools")
-                        response = self.agent.chat(
+                        response = await  self.agent.chat(
                             self.llama_model_id, 
                             messages=messages,
 
                             )
                     else:
                         print("Calling with tools")
-                        response = self.agent.chat(
+                        response = await self.agent.chat(
                             self.llama_model_id, 
                             messages=messages,
                             tools = tools_list
@@ -586,7 +587,7 @@ class AIAgent():
                     #         output = self.apply_retry_process(retry, response, user_input)
                             
                     #         messages.append({"role":"user", "content" : output})
-                    #         response = self.agent.chat(
+                    #         response = await self.agent.chat(
                     #             self.llama_model_id, 
                     #             messages=messages,
                     #             tools = [retrieve_acquisition_tool]
@@ -594,12 +595,12 @@ class AIAgent():
                             
                     #         print("refine_again : ",refine_again)
                     #         print("retry response ->",response.message.tool_calls)
-                    if  response.message.tool_calls is None and intent  in ["SEARCH", "DOC_WRITER"] and retry <2 and info_provided == False:
+                    if  response.message.tool_calls is None and intent  in ["SEARCH", "DOC_WRITER"] and retry <3 and info_provided == False:
                         print(f"Even though the intent is {intent} the intent is  {response.message.tool_calls }. Retrying ...")
                         output = f"Your did not follow your instructions. Your intent is  '{intent}' so you should call the tool to process it."
                         retry +=1
                         messages.append({"role":"user", "content" : output})
-                        response = self.agent.chat(
+                        response = await self.agent.chat(
                             self.llama_model_id, 
                             messages=messages,
                             tools = [retrieve_acquisition_tool, create_doc_agents_tool]

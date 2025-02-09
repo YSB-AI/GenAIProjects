@@ -62,7 +62,7 @@ Ensures seamless communication between the agents handling different sections, w
 
 2. Custom Multi-Agent Implementation
 
-Implements a Supervisor-Worker model using Ollama (Llama 3.2), with the Supervisor coordinating the workflow and deciding which worker agent to work next.
+Implements a Supervisor-Worker model using Ollama (MFDoom/deepseek-r1-tool-calling:1.5b), with the Supervisor coordinating the workflow and deciding which worker agent to work next.
 
 
 **Three Worker Agents handle specific sections:**
@@ -77,7 +77,7 @@ Provides greater flexibility and control over agent interactions, and increase t
 
 ## Technology Stack
 
-- Ollama (Llama 3.2) – Core language model for text generation.
+- Ollama (Llama 3.2 and MFDoom/deepseek-r1-tool-calling:1.5b)
 
 - LangGraph – Graph-based framework for managing multi-agent workflows.
 
