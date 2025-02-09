@@ -46,7 +46,8 @@ The assistant can generate a research-style document with the following sections
 
 The multi-agent system delegates different sections of the document to specialized agents, while a supervisor is used to coordinate the multiple agents tasks (Fig. 1).
 
-![Multi-Agents Diagram](Virtual_Assistant/images/supervisor-diagram.png)
+![Multi-Agents Diagram  ](Virtual_Assistant/images/supervisor-diagram.png)
+Fig. 1 - Multi-Agents Diagram  [https://blog.langchain.dev/langgraph-multi-agent-workflows/]
 
 
 The multi-agent system is implemented in two different ways:
