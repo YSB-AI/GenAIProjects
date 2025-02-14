@@ -94,7 +94,7 @@ class AIAgent():
             """Worker to route to next. If no workers needed, route to FINISH."""
             next: Literal[*options]
         
-        while True: # To deal wil the ChatOllama bug that somethings return just None instead of a structured output (even defining the output format as json, for example)
+        for _ in range(50): # To deal wil the ChatOllama bug that somethings return just None instead of a structured output (even defining the output format as json, for example)
             if len(self.new_members) == 0:
                 goto = END
                 break
